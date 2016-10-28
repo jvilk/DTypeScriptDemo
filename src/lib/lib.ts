@@ -262,6 +262,9 @@ namespace RuntimeTypes {
             break;
           case 'function':
             isFunction = true;
+            if ((<Function> value).__rtti__) {
+              return isCompatible((<Function> value).__rtti__, type);
+            }
             break;
           default:
             return false;
