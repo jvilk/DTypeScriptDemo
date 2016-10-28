@@ -1,0 +1,9 @@
+/build/server
+/build/staging
+/build/app/js/app.js
+/build/app/js/bundle.js
+/build/app/js/lib.*
+.vscode
+.tscache
+node_modules
+

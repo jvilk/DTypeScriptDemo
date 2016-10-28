@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "module": "none",
+    "target": "es5",
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noUnusedLocals": true,
+    "lib": ["dom", "es2015", "es2016", "es2017"],
+    "sourceMap": true,
+    "outDir": "../../build/app/js",
+    "typeRoots": []
+  },
+  "include": [
+    "**/*.ts"
+  ]
+}
