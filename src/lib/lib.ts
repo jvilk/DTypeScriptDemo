@@ -385,6 +385,7 @@ namespace RuntimeTypes {
       case 'undefined':
         return `undefined`;
       case 'boolean':
+      case 'number':
         return `${value}`;
       case 'string':
         return `'${value}'`;
