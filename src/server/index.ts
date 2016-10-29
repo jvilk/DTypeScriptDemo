@@ -108,6 +108,18 @@ app.post('/session/:id/function', (req, res) => {
   }
 });
 
+app.post('/session/:id/eval', (req, res) => {
+  const body = req.body;
+  if (typeof(body) === 'object' && body !== null) {
+    const session = getSessionForId(req.params.id, res);
+    if (session) {
+      res.send(session.runEval(body.body, body.loc));
+    }
+  } else {
+    sendBadRequest(res, 'Invalid request body.');
+  }
+});
+
 // Ends a session.
 app.delete('/session/:id', (req, res) => {
   const id = req.params.id;

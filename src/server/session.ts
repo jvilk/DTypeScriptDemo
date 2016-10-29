@@ -2,6 +2,7 @@ import * as ts from 'typescript/built/local/typescript';
 import Host from './host';
 import {Response, DiagnosticError, DiagnosticResponse} from '../common/protocol';
 import {join, basename, dirname} from 'path';
+import * as uuid from 'node-uuid';
 
 function getError(info: ts.Diagnostic): DiagnosticError {
 	const codeAndMessageText = ts.DiagnosticCategory[info.category].toLowerCase() +
@@ -93,6 +94,23 @@ export default class Session {
     this._host.updateFunctionFile(functionFile);
     const rv = this._compile([this._host.input, functionFile], functionFile);
     this._host.updateFunctionFile(null);
+    return rv;
+  }
+  public runEval(body: string, loc: {pos: number, end: number}): Response {
+    const savedSource = this._host.input.text;
+    const s = uuid.v4(), e = uuid.v4();
+    const newSrc = `${savedSource.slice(0, loc.pos)}((function() {\n/*${s}*/\n${body}\n/*${e}*/\n })())${savedSource.slice(loc.end)}`;
+    console.log(newSrc);
+    const rv = this.updateAndCompile(newSrc);
+    if (rv.type === 'compilation') {
+      console.log(rv.src);
+      const src = rv.src;
+      const jsBody = src.slice(src.indexOf(s) + s.length + 2, src.indexOf(e) - 2);
+      // Terribly inefficient; re-installs all function types under different names.
+      const globalTypes = src.slice(src.lastIndexOf('function installGlobalTypes'));
+      rv.src = `installGlobalTypes();\n${jsBody}\n${globalTypes}`;
+    }
+    this._host.input.text = savedSource;
     return rv;
   }
   private _compile(files: ts.SourceFile[], outputFile: ts.SourceFile): Response {

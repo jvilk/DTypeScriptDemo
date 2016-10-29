@@ -524,8 +524,8 @@ namespace RuntimeTypes {
     xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
     xhr.send(JSON.stringify({
       body: args[args.length - 1],
-      rtype: args[args.length - 2],
-      args: args.slice(0, args.length - 2)
+      rtype: args.length > 1 ? args[args.length - 2] : 'any',
+      args: args.length > 2 ? args.slice(0, args.length - 2) : []
     }));
 
     const response: any = JSON.parse(xhr.responseText);
@@ -561,7 +561,7 @@ namespace RuntimeTypes {
    * Checked eval function. If the source passes typechecking,
    * then it returns the compiled JavaScript.
    */
-  export function checkedEval(thisVal: any, inFrom: Function, ...args: any[]): any {
+  export function checkedEval(thisVal: any, loc: any, inFrom: Function, ...args: any[]): any {
     _shouldCallEval = false;
     if (inFrom !== eval) {
       // TypeScript tagged something that isn't eval.
@@ -572,10 +572,28 @@ namespace RuntimeTypes {
     }
     _shouldCallEval = true;
 
-    // Send to server!
-    // Need context though.
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${serverBase}session/${sessionId}/eval`, false);
+    xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+    xhr.send(JSON.stringify({
+      body: args[0],
+      loc: loc
+    }));
 
-    // convert '' to ' ' to make rv truthy.
+    const response: any = JSON.parse(xhr.responseText);
+    switch (response.type) {
+      case 'compilation':
+        console.log(response.src);
+        _checkedEvalRv = response.src;
+        return true;
+      case 'diagnostic':
+        const err = response.errors[0];
+        RuntimeTypes.notifyTypeError(err.msg, err.fileName, err.startPos.line, err.startPos.character);
+        throw new Error(JSON.stringify(response));
+      default:
+        RuntimeTypes.notifyTypeError(JSON.stringify(response), '', 0, 0);
+        throw new Error(JSON.stringify(response));
+    }
   }
 
 }
