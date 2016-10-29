@@ -2,7 +2,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as express from 'express';
 import * as bodyParser from 'body-parser';
-import * as ts from 'typescript/built/local/typescript';
+import * as ts from '../../ts/typescript';
 import * as uuid from 'node-uuid';
 import Session from './session';
 import {InternalErrorResponse, BadRequestResponse, HeartBeatResponse} from '../common/protocol';

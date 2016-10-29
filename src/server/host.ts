@@ -1,4 +1,4 @@
-import * as ts from 'typescript/built/local/typescript';
+import * as ts from '../../ts/typescript';
 import * as path from 'path';
 
 export default class Host implements ts.CompilerHost {

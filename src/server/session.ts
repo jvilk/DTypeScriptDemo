@@ -1,4 +1,4 @@
-import * as ts from 'typescript/built/local/typescript';
+import * as ts from '../../ts/typescript';
 import Host from './host';
 import {Response, DiagnosticError, DiagnosticResponse} from '../common/protocol';
 import {join, basename, dirname} from 'path';
@@ -71,6 +71,7 @@ export default class Session {
       errors: this._reportDiagnostics(ts.getPreEmitDiagnostics(this._program))
     };
     if (rv.errors.length > 0) {
+      console.log(rv);
       return rv;
     } else {
       return null;

@@ -531,7 +531,7 @@ namespace RuntimeTypes {
     const response: any = JSON.parse(xhr.responseText);
     switch (response.type) {
       case 'compilation':
-        console.log(response.src);
+        //console.log(response.src);
         return new savedFunction('RuntimeTypes', `installGlobalTypes();\n${response.src}\nreturn __dynamic__;`)(RuntimeTypes);
       case 'diagnostic':
         const err = response.errors[0];
@@ -583,7 +583,7 @@ namespace RuntimeTypes {
     const response: any = JSON.parse(xhr.responseText);
     switch (response.type) {
       case 'compilation':
-        console.log(response.src);
+        //console.log(response.src);
         _checkedEvalRv = response.src;
         return true;
       case 'diagnostic':
