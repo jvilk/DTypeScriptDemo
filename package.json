@@ -4,7 +4,13 @@
   "description": "Demo for DTypeScript",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build:server": "tsc -p src/server",
+    "build:lib": "tsc -p src/lib",
+    "app:tsc": "tsc -p src/app",
+    "app:webpack": "webpack --config webpack.config.js",
+    "build:app": "npm-run-all --serial app:tsc app:webpack",
+    "prepublish": "npm-run-all --parallel build:*",
+    "start": "node build/server/server/index.js"
   },
   "author": "John Vilk <jvilk@cs.umass.edu>",
   "license": "MIT",
@@ -20,9 +26,11 @@
     "@types/react-codemirror": "^0.2.4",
     "@types/react-dom": "^0.14.17",
     "codemirror": "^5.19.0",
+    "npm-run-all": "^3.1.1",
     "react": "^15.3.2",
     "react-codemirror": "^0.2.6",
-    "react-dom": "^15.3.2"
+    "react-dom": "^15.3.2",
+    "webpack": "^1.13.3"
   },
   "dependencies": {
     "body-parser": "^1.15.2",
