@@ -100,10 +100,8 @@ export default class Session {
     const savedSource = this._host.input.text;
     const s = uuid.v4(), e = uuid.v4();
     const newSrc = `${savedSource.slice(0, loc.pos)}((function() {\n/*${s}*/\n${body}\n/*${e}*/\n })())${savedSource.slice(loc.end)}`;
-    console.log(newSrc);
     const rv = this.updateAndCompile(newSrc);
     if (rv.type === 'compilation') {
-      console.log(rv.src);
       const src = rv.src;
       const jsBody = src.slice(src.indexOf(s) + s.length + 2, src.indexOf(e) - 2);
       // Terribly inefficient; re-installs all function types under different names.

@@ -22,7 +22,7 @@ const options = ts.convertCompilerOptionsFromJson({
   "noImplicitAny": true,
   "noImplicitReturns": true,
   "noImplicitThis": true,
-  "noUnusedLocals": true,
+  "noUnusedLocals": false,
   "lib": ["dom", "es2015", "es2016", "es2017"],
   "sourceMap": true,
   "typeRoots": [],
