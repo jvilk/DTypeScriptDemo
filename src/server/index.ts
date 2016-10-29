@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as express from 'express';
 import * as bodyParser from 'body-parser';
 import * as ts from 'typescript/built/local/typescript';
+import * as uuid from 'node-uuid';
 import Session from './session';
 import {InternalErrorResponse, BadRequestResponse, HeartBeatResponse} from '../common/protocol';
 
@@ -10,7 +11,6 @@ const APP_ROOT = path.join(__dirname, '..', '..', 'app');
 const SCRATCH_ROOT = path.join(__dirname, 'scratch');
 const SCRATCH_FILE = path.join(SCRATCH_ROOT, 'input.ts');
 const app = express();
-let nextId = 0;
 
 if (!fs.existsSync(SCRATCH_ROOT)) {
   fs.mkdirSync(SCRATCH_ROOT);
@@ -28,7 +28,7 @@ const options = ts.convertCompilerOptionsFromJson({
   "typeRoots": [],
   "dynamicTypeChecks": true
 }, SCRATCH_ROOT);
-const sessions = new Map<number, Session>();
+const sessions = new Map<string, Session>();
 if (options.errors && options.errors.length > 0) {
   console.log(`TypeScript errors: ${options.errors.join("\n")}`);
 }
@@ -45,29 +45,41 @@ app.use(bodyParser.text({
   limit: "50mb"
 }));
 
+app.use(bodyParser.json({
+  limit: "50mb"
+}));
+
+/**
+ * Get the session for the given ID. Returns undefined if not found.
+ */
+function getSessionForId(id: string, res: express.Response): Session {
+  const session = sessions.get(id);
+  if (!session) {
+    sendBadRequest(res, `Invalid session id: ${id}`);
+  }
+  return session;
+}
+
+function createSessionId(): string {
+  return uuid.v4();
+}
+
 // Begins a new session.
 app.post('/session', (req, res) => {
-  const id = nextId++;
+  const id = createSessionId();
   console.log("New session.");
   sessions.set(id, new Session(SCRATCH_ROOT, SCRATCH_FILE, options.options, () => sessions.delete(id)));
   res.send(id.toString());
 });
 
 app.put('/session/:id/heartbeat', (req, res) => {
-  const id = parseInt(req.params.id, 10);
-  if (isNaN(id)) {
-    sendBadRequest(res, "Received NaN session ID.");
-  } else {
-    const session = sessions.get(id);
-    if (!session) {
-      sendBadRequest(res, `Invalid session id: ${id}`);
-    } else {
-      const hbr: HeartBeatResponse = {
-        type: 'heartbeat'
-      };
-      session.heartbeat();
-      res.send(hbr);
-    }
+  const session = getSessionForId(req.params.id, res);
+  if (session) {
+    const hbr: HeartBeatResponse = {
+      type: 'heartbeat'
+    };
+    session.heartbeat();
+    res.send(hbr);
   }
 });
 
@@ -75,16 +87,21 @@ app.put('/session/:id/heartbeat', (req, res) => {
 app.put('/session/:id/source', (req, res) => {
   const body = req.body;
   if (typeof(body) === 'string') {
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) {
-      sendBadRequest(res, "Received NaN session ID.");
-    } else {
-      const session = sessions.get(id);
-      if (!session) {
-        sendBadRequest(res, `Invalid session id: ${id}`);
-      } else {
-        res.send(session.updateAndCompile(req.body));
-      }
+    const session = getSessionForId(req.params.id, res);
+    if (session) {
+      res.send(session.updateAndCompile(req.body));
+    }
+  } else {
+    sendBadRequest(res, 'Invalid request body.');
+  }
+});
+
+app.post('/session/:id/function', (req, res) => {
+  const body = req.body;
+  if (typeof(body) === 'object' && body !== null) {
+    const session = getSessionForId(req.params.id, res);
+    if (session) {
+      res.send(session.compileFunction(body.body, body.rtype, body.args));
     }
   } else {
     sendBadRequest(res, 'Invalid request body.');
@@ -93,10 +110,11 @@ app.put('/session/:id/source', (req, res) => {
 
 // Ends a session.
 app.delete('/session/:id', (req, res) => {
-  const id = parseInt(req.params.id, 10);
-  if (!isNaN(id)) {
+  const id = req.params.id;
+  if (sessions.has(id)) {
     sessions.delete(id);
   }
+  res.send();
 });
 
 // Error handler.

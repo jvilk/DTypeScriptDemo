@@ -5,17 +5,24 @@ export default class Host implements ts.CompilerHost {
 	private _nativeHost: ts.CompilerHost;
 	private _currentDirectory: string;
 	private _input: ts.SourceFile;
+	private _functionFile: ts.SourceFile = null;
 
 	constructor(currentDirectory: string, inputFile: ts.SourceFile, options: ts.CompilerOptions) {
 		this._nativeHost = ts.createCompilerHost(options);
 		this._currentDirectory = currentDirectory;
 		this._input = inputFile;
 	}
+	public updateFunctionFile(file: ts.SourceFile): void {
+		this._functionFile = file;
+	}
 	public updateInputFile(file: ts.SourceFile): void {
 		this._input = file;
 	}
 	public get input(): ts.SourceFile {
 		return this._input;
+	}
+	public get functionFile(): ts.SourceFile {
+		return this._functionFile;
 	}
   public getNewLine(): string {
 		return '\n';
@@ -42,17 +49,26 @@ export default class Host implements ts.CompilerHost {
 		if (fileName === this._input.fileName) {
 			return true;
 		}
+		if (this._functionFile && this._functionFile.fileName === fileName) {
+			return true;
+		}
 		return this._nativeHost.fileExists(fileName);
 	}
 	public readFile(fileName: string): string {
 		if (fileName === this._input.fileName) {
 			return this._input.text;
 		}
+		if (this._functionFile && this._functionFile.fileName === fileName) {
+			return this._functionFile.text;
+		}
 		return this._nativeHost.readFile(fileName);
 	}
 	public getSourceFile(fileName: string, languageVersion: ts.ScriptTarget, onError?: (message: string) => void): ts.SourceFile {
 		if (fileName === this._input.fileName) {
 			return this._input;
+		}
+		if (this._functionFile && this._functionFile.fileName === fileName) {
+			return this._functionFile;
 		}
 		return this._nativeHost.getSourceFile(fileName, languageVersion, onError);
 	}

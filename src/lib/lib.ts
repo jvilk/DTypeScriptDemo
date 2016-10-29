@@ -14,10 +14,12 @@ namespace RuntimeTypes {
   import RuntimeObjectType = ts.RuntimeObjectType;
   import RuntimeProperty = ts.RuntimeProperty;
   let judgmentCache = new Map<string, boolean>();
-  let nextId = 0;
+  let nextId = 1;
 
   function checkRegistration(s: ts.RuntimeIDBase) {
-    s.id < 0 ? s.id = nextId++ : 0;
+    if (!s.id || s.id < 0) {
+      s.id = nextId++;
+    }
   }
 
   function hasProperty(prop: string, val: Object | Function): boolean {
@@ -263,6 +265,8 @@ namespace RuntimeTypes {
           case 'function':
             isFunction = true;
             if ((<Function> value).__rtti__) {
+              // Compare tagged type, not the value.
+              // This avoids issues with constructor value checking, which checks if the prototype defines instance fields...
               return isCompatible((<Function> value).__rtti__, type);
             }
             break;
@@ -429,7 +433,7 @@ namespace RuntimeTypes {
 
   export function assertType(value: any, type: RuntimeType, file: string, line: number, col: number): any {
     if (!isType(value, type)) {
-      const msg = `Value:\n${valueToString}\nis not assignable to type:\n${typeToString(type)}`;
+      const msg = `Value:\n${valueToString(value)}\nis not assignable to type:\n${typeToString(type)}`;
       RuntimeTypes.notifyTypeError(msg, file, line, col);
       debugger;
       throw new Error(`${file}:${line}:${col} ${msg}`);
@@ -444,6 +448,8 @@ namespace RuntimeTypes {
   }
 
   export let notifyTypeError: (msg: string, file: string, line: number, col: number) => void = () => {};
+  export let sessionId: string = "--";
+  export let serverBase = "";
 
   function checkIfValuesMatchSignature(sig: RuntimeSignature, args: any[]): boolean {
     // Each argument must be compatible with sig's arguments.
@@ -492,4 +498,84 @@ namespace RuntimeTypes {
   Function.prototype.call = function(this: Function, thisObj: any, ...args: any[]): any {
     this.apply(thisObj, args);
   }
+
+  const savedSetTimeout = setTimeout;
+  const savedSetInterval = setInterval;
+
+  function normalizeHandler(handler: any): Function {
+    if (typeof(handler) === 'function') {
+      return handler
+    }
+    return new Function(handler);
+  }
+
+  window.setTimeout = function(handler: any, timeout: any, ...args: any[]): number {
+    return savedSetTimeout.apply(null, [normalizeHandler(handler), timeout, args]);
+  };
+
+  window.setInterval = function(handler: any, timeout: any, ...args: any[]): number {
+    return savedSetInterval.apply(null, [normalizeHandler(handler), timeout, args]);
+  };
+
+  const savedFunction = Function;
+  (<any> window).Function = function(...args: any[]): any {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${serverBase}session/${sessionId}/function`, false);
+    xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+    xhr.send(JSON.stringify({
+      body: args[args.length - 1],
+      rtype: args[args.length - 2],
+      args: args.slice(0, args.length - 2)
+    }));
+
+    const response: any = JSON.parse(xhr.responseText);
+    switch (response.type) {
+      case 'compilation':
+        console.log(response.src);
+        return new savedFunction('RuntimeTypes', `installGlobalTypes();\n${response.src}\nreturn __dynamic__;`)(RuntimeTypes);
+      case 'diagnostic':
+        const err = response.errors[0];
+        RuntimeTypes.notifyTypeError(err.msg, err.fileName, err.startPos.line, err.startPos.character);
+        throw new Error(JSON.stringify(response));
+      default:
+        RuntimeTypes.notifyTypeError(JSON.stringify(response), '', 0, 0);
+        throw new Error(JSON.stringify(response));
+    }
+  };
+
+  let _shouldCallEval = false;
+  export function shouldCallEval(): boolean {
+    const rv = _shouldCallEval;
+    _shouldCallEval = false;
+    return rv;
+  }
+
+  let _checkedEvalRv: any = null;
+  export function checkedEvalReturnValue(): any {
+    let rv = _checkedEvalRv;
+    _checkedEvalRv = null;
+    return rv;
+  }
+
+  /**
+   * Checked eval function. If the source passes typechecking,
+   * then it returns the compiled JavaScript.
+   */
+  export function checkedEval(thisVal: any, inFrom: Function, ...args: any[]): any {
+    _shouldCallEval = false;
+    if (inFrom !== eval) {
+      // TypeScript tagged something that isn't eval.
+      // Return an array to make this truthy.
+      _checkedEvalRv = inFrom.call(thisVal, args);
+      // rv should always be truthy for convenience.
+      return true;
+    }
+    _shouldCallEval = true;
+
+    // Send to server!
+    // Need context though.
+
+    // convert '' to ' ' to make rv truthy.
+  }
+
 }

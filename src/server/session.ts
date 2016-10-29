@@ -1,6 +1,7 @@
 import * as ts from 'typescript/built/local/typescript';
 import Host from './host';
 import {Response, DiagnosticError, DiagnosticResponse} from '../common/protocol';
+import {join, basename, dirname} from 'path';
 
 function getError(info: ts.Diagnostic): DiagnosticError {
 	const codeAndMessageText = ts.DiagnosticCategory[info.category].toLowerCase() +
@@ -43,8 +44,10 @@ export default class Session {
   private _program: ts.Program;
   private _checker: ts.TypeChecker;
   private _inputFile: string;
+  private _functionFile: string;
   private _timer: any;
   private _cancelFunction: Function;
+  private _iter: number = 0;
   constructor(dir: string, inputFile: string, options: ts.CompilerOptions, cancelFunction: Function) {
     this._options = options;
     this._inputFile = inputFile;
@@ -56,6 +59,10 @@ export default class Session {
     this._checker = this._program.getTypeChecker();
     this._cancelFunction = cancelFunction;
     this._timer = setTimeout(cancelFunction, 30000);
+    this._functionFile = join(dirname(inputFile), `${basename(inputFile).slice(0, -3)}_function.ts`);
+  }
+  public get typePrefix(): string {
+    return `__$type${this._iter}`;
   }
   public sanityCheck(): DiagnosticResponse {
     const rv: DiagnosticResponse = {
@@ -81,9 +88,17 @@ export default class Session {
   private _updateSource(newText: string): void {
     this._host.updateInputFile(this._createSourceFile(newText));
   }
-  public updateAndCompile(text: string): Response {
-    this._updateSource(text);
-    this._program = ts.createProgram([this._inputFile], this._options, this._host, this._program);
+  public compileFunction(body: string, rtype: string, args: string[]): Response {
+    const functionFile = ts.createSourceFile(this._functionFile, `function __dynamic__(${args.join(", ")}): ${rtype} {\n${body}\n}`, this._options.target);
+    this._host.updateFunctionFile(functionFile);
+    const rv = this._compile([this._host.input, functionFile], functionFile);
+    this._host.updateFunctionFile(null);
+    return rv;
+  }
+  private _compile(files: ts.SourceFile[], outputFile: ts.SourceFile): Response {
+    this._iter++;
+    this._options.dynamicTypeVarPrefix = this.typePrefix;
+    this._program = ts.createProgram(files.map((f) => f.fileName), this._options, this._host, this._program);
     let sanityCheck = this.sanityCheck();
     if (sanityCheck) {
       return sanityCheck;
@@ -91,8 +106,8 @@ export default class Session {
     this._checker = this._program.getTypeChecker();
     let outputJs: string = null;
     let outputMap: string = null;
-    const inputBase = this._inputFile.slice(0, this._inputFile.indexOf('.'));
-    const emitOutput = this._program.emit(this._host.input, (fileName: string, content: string) => {
+    const inputBase = outputFile.fileName.slice(0, outputFile.fileName.indexOf('.'));
+    const emitOutput = this._program.emit(outputFile, (fileName: string, content: string) => {
       const dotIndex = fileName.indexOf('.');
       const ext = dotIndex !== -1 ? fileName.slice(dotIndex + 1) : '';
       const base = dotIndex !== -1 ? fileName.slice(0, dotIndex) : fileName;
@@ -128,5 +143,9 @@ export default class Session {
       src: outputJs,
       map: outputMap
     };
+  }
+  public updateAndCompile(text: string): Response {
+    this._updateSource(text);
+    return this._compile([this._host.input], this._host.input);
   }
 }

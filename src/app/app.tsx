@@ -16,7 +16,7 @@ type EditorState = {
 };
 
 
-class Editor extends React.Component<{ sessionId: number }, EditorState> {
+class Editor extends React.Component<{ sessionId: string }, EditorState> {
   private _runWindow: Window = null;
   constructor() {
     super();
@@ -106,7 +106,7 @@ class Editor extends React.Component<{ sessionId: number }, EditorState> {
           // Success!!
           external.window.document.body.removeChild(div);
           console.log(response.src);
-          script.textContent = `${libSrc}\nRuntimeTypes.notifyTypeError = function(msg, file, line, col) { window.opener.postMessage(JSON.stringify({msg: msg, file: file, line: line, col: col}), "*"); };\n${response.src}`;
+          script.textContent = `${libSrc}\nRuntimeTypes.sessionId = "${this.props.sessionId}";\nRuntimeTypes.serverBase = "${location.protocol + '//' + location.host}/";\nRuntimeTypes.notifyTypeError = function(msg, file, line, col) { window.opener.postMessage(JSON.stringify({msg: msg, file: file, line: line, col: col}), "*"); };\n${response.src}`;
           external.window.document.body.appendChild(script);
           this.setState({ compiledCode: response.src });
           break;
@@ -153,7 +153,7 @@ class Editor extends React.Component<{ sessionId: number }, EditorState> {
   }
 }
 
-class App extends React.Component<{ sessionId: number }, {}> {
+class App extends React.Component<{ sessionId: string }, {}> {
   public render() {
     return <Editor sessionId={this.props.sessionId} />;
   }
@@ -221,11 +221,11 @@ function sendXHR<B>(verb: string, resource: string, body: B, cb: (res: Response)
 
 
 
-function createSession(cb: (id: number) => void): void {
+function createSession(cb: (id: string) => void): void {
   const xhr = new XMLHttpRequest();
   xhr.open('POST', '/session');
   xhr.onload = function() {
-    const id = parseInt(xhr.responseText, 10);
+    const id = xhr.responseText;
     const interval = setInterval(function() {
       const xhr = new XMLHttpRequest();
       xhr.open('PUT', `/session/${id}/heartbeat`);
