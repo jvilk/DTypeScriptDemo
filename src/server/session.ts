@@ -100,7 +100,7 @@ export default class Session {
   public runEval(body: string, loc: {pos: number, end: number}): Response {
     const savedSource = this._host.input.text;
     const s = uuid.v4(), e = uuid.v4();
-    const newSrc = `${savedSource.slice(0, loc.pos)}((function() {\n/*${s}*/\n${body}\n/*${e}*/\n })())${savedSource.slice(loc.end)}`;
+    const newSrc = `${savedSource.slice(0, loc.pos)}((function ____specialEvalFunction() {\n/*${s}*/\n${body}\n/*${e}*/\n })())${savedSource.slice(loc.end)}`;
     const rv = this.updateAndCompile(newSrc);
     if (rv.type === 'compilation') {
       const src = rv.src;

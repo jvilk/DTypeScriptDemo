@@ -17057,7 +17057,7 @@ var ts;
             }
             var typeStatus = ts_1.createMap();
             var deferredAssignments = [];
-            write("function installGlobalTypes() {\n");
+            write("\n\nfunction installGlobalTypes() {\n");
             while (emitQueue.length > 0) {
                 var next = emitQueue.pop();
                 var type = next.t;
@@ -41220,6 +41220,11 @@ var ts;
                         current = current.expression;
                     }
                 }
+                if (compilerOptions.dynamicTypeChecks && (node.kind === 179 /* FunctionExpression */ || node.kind === 147 /* MethodDeclaration */)) {
+                    if (node.name && node.name.symbol && node.name.symbol.name === "____specialEvalFunction") {
+                        write("return ");
+                    }
+                }
                 emitParenthesizedIf(body, current.kind === 171 /* ObjectLiteralExpression */);
             }
             function emitDownLevelExpressionFunctionBody(node, body) {
@@ -41272,10 +41277,21 @@ var ts;
                 emitFunctionBodyPreamble(node);
                 decreaseIndent();
                 var preambleEmitted = writer.getTextPos() !== initialTextPos;
+                var makeLastStatementReturn = false;
+                var lastStatement = null;
+                if (compilerOptions.dynamicTypeChecks && (node.kind === 179 /* FunctionExpression */ || node.kind === 147 /* MethodDeclaration */)) {
+                    makeLastStatementReturn = node.name && node.name.symbol && node.name.symbol.name === "____specialEvalFunction";
+                    if (body.statements.length > 0) {
+                        lastStatement = body.statements[body.statements.length - 1];
+                    }
+                }
                 if (!preambleEmitted && nodeEndIsOnSameLineAsNodeStart(body, body)) {
                     for (var _a = 0, _b = body.statements; _a < _b.length; _a++) {
                         var statement = _b[_a];
                         write(" ");
+                        if (makeLastStatementReturn && statement === lastStatement) {
+                            write("return ");
+                        }
                         emit(statement);
                     }
                     emitTempDeclarations(/*newLine*/ false);

@@ -145,7 +145,7 @@ namespace RuntimeTypes {
       return result &&
         // y does not supply this parameter. The parameter must be optional due to previous
         // mandatory args check.
-        (y.args.length >= i ||
+        (y.args.length <= i ||
         // When comparing the types of function parameters, assignment succeeds if either
         // the source parameter is assignable to the target parameter, or vice versa
          isCompatible(y.args[i], paramType) ||
@@ -475,7 +475,8 @@ namespace RuntimeTypes {
   Function.prototype.apply = function(this: Function, thisObj: any, args: any[]): any {
     if (this.__rtti__) {
       // Check if any of the signatures match.
-      let result = this.__rtti__.callSignatures.reduce((result: boolean, sig: RuntimeSignature) => {
+      // Note: apply can be used on construct signatures when `thisObj` is specified.
+      let result = this.__rtti__.callSignatures.concat(this.__rtti__.constructSignatures).reduce((result: boolean, sig: RuntimeSignature) => {
         return result || checkIfValuesMatchSignature(sig, args);
       }, false);
       if (!result) {

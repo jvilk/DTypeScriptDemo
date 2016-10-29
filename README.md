@@ -113,6 +113,10 @@ DTypeScript assumes that all type annotations in the program are correct. If a s
 
 DTypeScript assumes that all program type annotations are correct. If you have an incorrect type annotation for something in the browser environment, DTypeScript will not find it. DTypeScript only checks types at dynamic casts and `eval`-like functions.
 
+### Arrays and Tuples
+
+Internally, array types and tuples use generics. DTypeScript does not yet support generics (see next header).
+
 ### Type casts with generics
 
 The following is illegal in DTypeScript:

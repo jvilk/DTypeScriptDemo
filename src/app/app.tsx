@@ -15,6 +15,66 @@ type EditorState = {
   alert?: null | string;
 };
 
+const defaultEditorText = `
+let t = document.createElement('textarea');
+t.setAttribute('cols', '30');
+t.setAttribute('rows', '30');
+// Output terminal. :)
+document.body.appendChild(t);
+
+// Some classes.
+class Bar {
+  public z: number;
+  constructor() {
+  	this.z = -1;
+  }
+}
+
+class Foo extends Bar {
+  public x: number;
+  public y: string;
+  constructor(x: number, y: string) { super(); this.x = x; this.y = y; }
+
+  public bar() { return this.x; }
+}
+
+function boo(a: string | boolean): void {}
+
+// Store boo into an any type, erasing static type info.
+let y: any = boo;
+// Dynamic cast. The type of y will be checked at runtime.
+// If you change this to something invalid
+<(a: string | boolean) => void> y;
+
+let x_str = 'hi';
+// Create a new Foo!
+let x: any = eval("new Foo(3, x_str)");
+// Dynamically check that x is of type foo.
+<Foo> x;
+t.value += \`Foo's x value: \${x.x}\n\`;
+
+interface FooLike {
+  x: number;
+}
+
+// Dynamically check that x is of type FooLike.
+<FooLike> x;
+
+// Create a new function and dynamically call it!
+// Since we are eval'ing TypeScript, we add type annotations for arguments and the return value.
+let f = new Function("a: Foo", "b: Bar", "number", "return a.x + a.z;");
+// To static TypeScript, f is just a Function object that accepts any arguments and returns any value.
+// Let's dynamically typecast it to a more specific type.
+// Since DTypeScript adds runtime type annotations to function objects, it knows the correct signature for this
+// function. (Try changing this to an invalid signature!)
+let typedF = <(a: Foo, b: Bar) => number> f;
+t.value += \`TypedF return value: \${typedF(new Foo(3, "hi"), new Bar())}\n\`;
+
+let v: any[] = [3, 3];
+// DTypeScript does not support array casts, but it supports index casts on arrays like this one.
+let v_2 = <{[i: number]: number}> v;
+`;
+
 
 class Editor extends React.Component<{ sessionId: string }, EditorState> {
   private _runWindow: Window = null;
@@ -22,7 +82,7 @@ class Editor extends React.Component<{ sessionId: string }, EditorState> {
     super();
     const lsContents = localStorage.getItem(LS_KEY);
     this.state = {
-      code: lsContents ? lsContents : "alert('test');",
+      code: lsContents ? lsContents : defaultEditorText,
       compiledCode: null,
       readOnly: false,
       alert: null
